@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Radio } from 'lucide-react';
 import StatsOverview from './components/StatsOverview';
+import TargetPreviewBox from './components/TargetPreviewBox';
 import LiveTrafficStream from './components/LiveTrafficStream';
 import CurrentThreatPanel from './components/CurrentThreatPanel';
 import AgentActivityTrace from './components/AgentActivityTrace';
@@ -11,6 +12,10 @@ const GATEWAY_BASE = 'http://localhost:8000';
 const WS_URL = 'ws://localhost:8000/ws';
 
 export default function App() {
+  const [selectedSystem, setSelectedSystem] = useState('jiohotstar');
+  const [selectedPage, setSelectedPage] = useState('home');
+  const [securityMode, setSecurityMode] = useState('DYNAMIC');
+
   const [stats, setStats] = useState({
     total_requests: 0,
     requests_per_sec: 0,
@@ -24,7 +29,7 @@ export default function App() {
   const [riskTrajectory, setRiskTrajectory] = useState([]);
   const [wsConnected, setWsConnected] = useState(false);
 
-  // Fetch top stats periodically
+  // Fetch current mode & top stats
   const fetchStats = async () => {
     try {
       const res = await fetch(`${GATEWAY_BASE}/admin/stats`);
@@ -37,8 +42,21 @@ export default function App() {
     }
   };
 
+  const fetchSecurityMode = async () => {
+    try {
+      const res = await fetch(`${GATEWAY_BASE}/admin/mode`);
+      if (res.ok) {
+        const data = await res.json();
+        setSecurityMode(data.mode);
+      }
+    } catch (err) {
+      console.error('Error fetching security mode:', err);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchSecurityMode();
     const interval = setInterval(fetchStats, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -87,13 +105,37 @@ export default function App() {
     };
   }, []);
 
-  const handleStartSimulation = async (scenario) => {
+  const handleToggleSecurityMode = async (newMode) => {
     try {
-      await fetch(`${GATEWAY_BASE}/admin/simulator/start?scenario=${scenario}&client_id=demo-${scenario}-user`, {
+      const res = await fetch(`${GATEWAY_BASE}/admin/mode?mode=${newMode}`, { method: 'POST' });
+      if (res.ok) {
+        setSecurityMode(newMode);
+      }
+    } catch (err) {
+      console.error('Error setting security mode:', err);
+    }
+  };
+
+  const getCurrentEndpoint = () => {
+    return `/api/${selectedSystem}/${selectedPage === 'home' ? 'home' : selectedPage}`;
+  };
+
+  const handleStartSimulation = async (scenario) => {
+    const endpoint = getCurrentEndpoint();
+    try {
+      await fetch(`${GATEWAY_BASE}/admin/simulator/start?scenario=${scenario}&client_id=demo-${scenario}-user&endpoint=${encodeURIComponent(endpoint)}`, {
         method: 'POST'
       });
     } catch (err) {
       console.error('Error starting simulation:', err);
+    }
+  };
+
+  const handleStopSimulation = async () => {
+    try {
+      await fetch(`${GATEWAY_BASE}/admin/simulator/stop`, { method: 'POST' });
+    } catch (err) {
+      console.error('Error stopping simulation:', err);
     }
   };
 
@@ -121,7 +163,7 @@ export default function App() {
             <h1 className="text-xl md:text-2xl font-black text-white tracking-wide flex items-center gap-3">
               Agentic AI API Abuse Detection
               <span className="text-xs px-3 py-1 font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                PROTOTYPE V1.0
+                PROTOTYPE V2.0
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">Autonomous observe-detect-decide-act API gateway security framework</p>
@@ -139,8 +181,19 @@ export default function App() {
       {/* Top Statistics Overview */}
       <StatsOverview stats={stats} />
 
+      {/* Target System & Page Interactive Preview Box */}
+      <TargetPreviewBox
+        selectedSystem={selectedSystem}
+        onSelectSystem={setSelectedSystem}
+        selectedPage={selectedPage}
+        onSelectPage={setSelectedPage}
+        securityMode={securityMode}
+        onToggleSecurityMode={handleToggleSecurityMode}
+        latestEvent={selectedEvent}
+      />
+
       {/* Demo Controls */}
-      <DemoControlPanel onStartSimulation={handleStartSimulation} onReset={handleReset} />
+      <DemoControlPanel onStartSimulation={handleStartSimulation} onStopSimulation={handleStopSimulation} onReset={handleReset} />
 
       {/* Grid Layout for Live Activity & Threat Intelligence */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
