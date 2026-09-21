@@ -62,8 +62,14 @@ class TrafficMonitoringAgent:
         self._cleanup_old_records(client_id, now)
 
         total_in_window = len(self.request_timestamps[client_id])
-        requests_per_sec = round(total_in_window / max(1, self.window_seconds), 2)
-        requests_per_min = total_in_window
+        
+        # Calculate short-term burst (last 5 seconds)
+        short_cutoff = now - 5.0
+        burst_5s = sum(1 for t in self.request_timestamps[client_id] if t >= short_cutoff)
+
+        # Calculate projected requests per minute (extrapolated from burst if high)
+        projected_rpm = max(total_in_window, int((burst_5s / 5.0) * 60))
+        requests_per_sec = round(burst_5s / 5.0, 2)
 
         login_failure_count = len(self.login_failures[client_id])
         unique_endpoints = len(set(req["endpoint"] for req in self.request_history[client_id]))
@@ -72,16 +78,12 @@ class TrafficMonitoringAgent:
         history = self.request_history[client_id]
         avg_payload_size = (sum(r["payload_size"] for r in history) / len(history)) if history else 0.0
 
-        # Calculate short-term burst (last 5 seconds)
-        short_cutoff = now - 5.0
-        burst_5s = sum(1 for t in self.request_timestamps[client_id] if t >= short_cutoff)
-
         return {
             "client_id": client_id,
             "ip": self.client_ips.get(client_id, "127.0.0.1"),
             "request_count": total_in_window,
             "requests_per_second": requests_per_sec,
-            "requests_per_minute": requests_per_min,
+            "requests_per_minute": projected_rpm,
             "burst_5s": burst_5s,
             "login_failures": login_failure_count,
             "unique_endpoints": unique_endpoints,
