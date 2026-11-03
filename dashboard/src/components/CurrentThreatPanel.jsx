@@ -1,89 +1,125 @@
 import React from 'react';
-import { AlertOctagon, ShieldAlert, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, AlertCircle } from 'lucide-react';
 
 export default function CurrentThreatPanel({ event }) {
   if (!event) {
     return (
-      <div className="glass-panel p-6 rounded-2xl h-full flex flex-col justify-center items-center text-center">
-        <ShieldCheck className="w-12 h-12 text-emerald-400 mb-3 opacity-60" />
-        <h3 className="text-base font-semibold text-slate-300">No Active Threat Selected</h3>
-        <p className="text-xs text-slate-500 max-w-xs mt-1">Select any event from the live stream table to inspect deep risk metrics and agent reasoning.</p>
+      <div className="bg-surface-card border border-hairline p-6 lg:p-8 h-full flex flex-col justify-center items-center text-center">
+        <ShieldCheck className="w-10 h-10 text-muted mb-4" />
+        <h3 className="text-base font-bold uppercase tracking-[1.5px] text-white">
+          INSPECTION ENGINE IDLE
+        </h3>
+        <p className="text-xs font-light text-body max-w-xs mt-2 leading-relaxed">
+          Select any packet from the live ingress telemetry table to view risk decomposition and mitigation reasoning.
+        </p>
       </div>
     );
   }
 
   const { client_id, risk_score, risk_level, action, reason, metrics } = event;
 
-  const getRiskColor = (score) => {
-    if (score >= 80) return { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500/30' };
-    if (score >= 60) return { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500/30' };
-    if (score >= 30) return { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500/30' };
-    return { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500/30' };
+  const getRiskTone = (score) => {
+    if (score >= 80) return { text: 'text-m-red', bar: 'bg-m-red', border: 'border-m-red' };
+    if (score >= 60) return { text: 'text-m-red', bar: 'bg-m-red', border: 'border-m-red' };
+    if (score >= 30) return { text: 'text-warning', bar: 'bg-warning', border: 'border-warning' };
+    return { text: 'text-white', bar: 'bg-white', border: 'border-hairline' };
   };
 
-  const colors = getRiskColor(risk_score);
+  const tone = getRiskTone(risk_score);
 
   return (
-    <div className="glass-panel p-5 rounded-2xl h-full flex flex-col justify-between">
+    <div className="bg-surface-card border border-hairline p-6 lg:p-8 h-full flex flex-col justify-between">
       <div>
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-hairline">
           <div>
-            <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Active Client</span>
-            <h3 className="text-lg font-bold text-white font-mono mt-0.5">{client_id}</h3>
+            <span className="text-[10px] font-bold tracking-[1.5px] uppercase text-muted block">
+              TARGET SESSION
+            </span>
+            <h3 className="text-sm font-bold text-white font-mono mt-0.5 truncate max-w-[200px]">
+              {client_id}
+            </h3>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors.bg}/20 ${colors.text} border ${colors.border}`}>
+          <span className={`px-2.5 py-1 text-[10px] font-mono font-bold uppercase border ${tone.border} ${tone.text}`}>
             {risk_level}
           </span>
         </div>
 
-        {/* Risk Gauge Bar */}
-        <div className="my-5">
-          <div className="flex justify-between items-baseline mb-1.5">
-            <span className="text-xs text-slate-400 font-semibold">Threat Risk Score</span>
-            <span className={`text-2xl font-black font-mono ${colors.text}`}>{risk_score} <span className="text-xs text-slate-500 font-normal">/ 100</span></span>
+        {/* Risk Score Gauge */}
+        <div className="my-6">
+          <div className="flex justify-between items-baseline mb-2">
+            <span className="text-xs font-bold uppercase tracking-[1.5px] text-body">
+              RISK VELOCITY
+            </span>
+            <div className="font-mono">
+              <span className={`text-3xl font-bold ${tone.text}`}>{risk_score}</span>
+              <span className="text-xs text-muted font-normal ml-1">/ 100</span>
+            </div>
           </div>
-          <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+          <div className="w-full h-2 bg-canvas border border-hairline">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${colors.bg}`}
+              className={`h-full transition-all duration-300 ${tone.bar}`}
               style={{ width: `${Math.max(5, risk_score)}%` }}
-            ></div>
+            />
           </div>
         </div>
 
-        {/* Current Security Action */}
-        <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 mb-4">
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Applied Mitigation</span>
-          <div className="text-base font-bold text-cyan-300 font-mono mt-1">{action}</div>
+        {/* Applied Mitigation Spec */}
+        <div className="bg-surface-soft p-4 border border-hairline mb-5 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold tracking-[1.5px] uppercase text-muted block">
+              MITIGATION STRATEGY
+            </span>
+            <div className="text-sm font-bold uppercase tracking-wider text-white font-mono mt-1">
+              {action}
+            </div>
+          </div>
+          {event.quota !== undefined && (
+            <div className="text-right">
+              <span className="text-[10px] font-bold tracking-[1.5px] uppercase text-muted block">
+                ACTIVE LIMIT
+              </span>
+              <span className="text-xs font-mono font-bold text-white">
+                {event.previous_quota !== undefined && event.previous_quota !== event.quota
+                  ? `${event.previous_quota} → ${event.quota} RPM`
+                  : `${event.quota} RPM`}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Detection Reasons */}
+        {/* Reasoning Breakdown */}
         <div>
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-2">Agent Reason Breakdown</span>
-          <div className="text-xs text-slate-300 bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono leading-relaxed">
+          <span className="text-[10px] font-bold tracking-[1.5px] uppercase text-muted block mb-2">
+            AGENT DECISION LOGIC
+          </span>
+          <div className="text-xs text-body bg-surface-soft p-4 border border-hairline leading-relaxed font-mono">
             {reason ? (
               reason.split('; ').map((r, i) => (
-                <div key={i} className="flex items-start space-x-2 my-1">
-                  <span className="text-rose-400 font-bold">•</span>
-                  <span>{r}</span>
+                <div key={i} className="flex items-start gap-2 my-1">
+                  <span className="text-white font-bold">—</span>
+                  <span className="text-body-strong font-light font-sans">{r}</span>
                 </div>
               ))
             ) : (
-              <span className="text-slate-500">Normal request pattern</span>
+              <span className="text-muted font-light font-sans">Nominal trajectory. No policy deviations flagged.</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Metrics Summary */}
+      {/* Telemetry Metrics Grid */}
       {metrics && (
-        <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs font-mono">
-          <div className="bg-slate-900/40 p-2 rounded-lg">
-            <span className="text-slate-500 block">RPM</span>
-            <span className="text-slate-200 font-bold">{metrics.requests_per_minute}</span>
+        <div className="grid grid-cols-2 gap-2 mt-6 pt-4 border-t border-hairline text-xs font-mono">
+          <div className="bg-surface-soft p-3 border border-hairline">
+            <span className="text-[10px] uppercase tracking-wider text-muted block">RPM RATE</span>
+            <span className="text-white font-bold text-sm">{metrics.requests_per_minute}</span>
           </div>
-          <div className="bg-slate-900/40 p-2 rounded-lg">
-            <span className="text-slate-500 block">Auth Failures</span>
-            <span className="text-rose-400 font-bold">{metrics.login_failures}</span>
+          <div className="bg-surface-soft p-3 border border-hairline">
+            <span className="text-[10px] uppercase tracking-wider text-muted block">AUTH ANOMALIES</span>
+            <span className={`font-bold text-sm ${metrics.login_failures > 0 ? 'text-m-red' : 'text-white'}`}>
+              {metrics.login_failures}
+            </span>
           </div>
         </div>
       )}

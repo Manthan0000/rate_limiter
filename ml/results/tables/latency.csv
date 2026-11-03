@@ -1,0 +1,5 @@
+Model,"Single-request latency (ms, median)",Batch throughput (flows/s)
+Logistic Regression,0.164,3565189.488
+Decision Tree,0.069,8343066.905
+Random Forest,31.369,208633.244
+HistGradientBoosting,3.422,188298.385

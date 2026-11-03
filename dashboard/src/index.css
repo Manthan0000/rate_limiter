@@ -3,39 +3,105 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    border-radius: 0px;
+  }
   body {
-    background-color: #030712;
-    color: #f3f4f6;
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 }
 
-/* Glassmorphic Utilities */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.rounded-full {
+  border-radius: 9999px !important;
 }
 
-.glass-panel-hover {
-  transition: all 0.2s ease-in-out;
-}
-.glass-panel-hover:hover {
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+/* BMW M Signature Tricolor Stripe */
+.m-stripe-h {
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    #0066b1 0%,
+    #0066b1 33.333%,
+    #1c69d4 33.333%,
+    #1c69d4 66.666%,
+    #e22718 66.666%,
+    #e22718 100%
+  );
 }
 
-/* Custom Scrollbar */
+.m-stripe-v {
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    #0066b1 0%,
+    #0066b1 33.333%,
+    #1c69d4 33.333%,
+    #1c69d4 66.666%,
+    #e22718 66.666%,
+    #e22718 100%
+  );
+}
+
+/* Precision Button Classes */
+.btn-m-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 12px 24px;
+  height: 48px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-m-primary:hover {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.btn-m-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: #ffffff;
+  border: 1px solid #3c3c3c;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 12px 24px;
+  height: 48px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-m-outline:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  background-color: #1a1a1a;
+}
+
+/* Custom Scrollbar - Precision Machined */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #000000;
+  border-left: 1px solid #262626;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: #3c3c3c;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #7e7e7e;
 }

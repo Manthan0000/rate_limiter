@@ -4,7 +4,6 @@ from .database import Base
 
 class RequestLog(Base):
     __tablename__ = "requests"
-
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     client_id = Column(String, index=True)
@@ -18,39 +17,36 @@ class RequestLog(Base):
 
 class ClientBehavior(Base):
     __tablename__ = "client_behavior"
-
     client_id = Column(String, primary_key=True, index=True)
     ip = Column(String)
     request_count = Column(Integer, default=0)
     requests_per_minute = Column(Float, default=0.0)
     login_failures = Column(Integer, default=0)
     current_risk = Column(Float, default=0.0)
-    risk_level = Column(String, default="NORMAL") # NORMAL, SUSPICIOUS, HIGH_RISK, CRITICAL
-    current_action = Column(String, default="ALLOW") # ALLOW, RATE_LIMIT, STRICT_RATE_LIMIT, CHALLENGE, BLOCK
+    risk_level = Column(String, default="NORMAL")
+    current_action = Column(String, default="ALLOW")
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class SecurityEvent(Base):
     __tablename__ = "security_events"
-
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     client_id = Column(String, index=True)
     endpoint = Column(String)
     risk_score = Column(Float)
-    decision = Column(String) # ALLOW, RATE_LIMIT, STRICT_RATE_LIMIT, CHALLENGE, BLOCK
+    decision = Column(String)
     reason = Column(Text)
     action = Column(String)
-    result = Column(Integer) # HTTP status code returned to client
+    result = Column(Integer)
 
 class FeedbackLog(Base):
     __tablename__ = "feedback"
-
     id = Column(Integer, primary_key=True, index=True)
     event_id = Column(Integer, ForeignKey("security_events.id"), nullable=True)
     client_id = Column(String, index=True)
     previous_action = Column(String)
     traffic_before = Column(Float)
     traffic_after = Column(Float)
-    result = Column(String) # IMPROVED, ESCALATED, STABLE
+    result = Column(String)
     policy_update = Column(String)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())

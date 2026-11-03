@@ -3,52 +3,30 @@ from typing import Dict, Any, List
 
 class FeedbackAgent:
     def __init__(self):
-        # client_id -> list of action history entries
-        self.action_history: Dict[str, List[Dict[str, Any]]] = {}
+        self.action_history: Dict[str, List[Dict]] = {}
 
     def record_action(self, client_id: str, action: str, risk_score: float, rpm: float) -> Dict[str, Any]:
-        now = time.time()
-        if client_id not in self.action_history:
-            self.action_history[client_id] = []
+        history = self.action_history.setdefault(client_id, [])
+        prev = history[-1] if history else None
 
-        history = self.action_history[client_id]
-        
-        previous_entry = history[-1] if history else None
-        
         feedback_result = "STABLE"
-        policy_recommendation = "MAINTAIN"
+        policy_rec = "MAINTAIN"
 
-        if previous_entry:
-            prev_rpm = previous_entry["rpm"]
-            prev_action = previous_entry["action"]
-
-            # If traffic dropped after enforcement
-            if rpm < prev_rpm * 0.7:
+        if prev:
+            if action == "BOOST_RATE_LIMIT":
+                feedback_result, policy_rec = "SCALED_UP", "BOOST_QUOTA_250_RPM"
+            elif rpm < prev["rpm"] * 0.7:
                 feedback_result = "IMPROVED"
-                if prev_action in ["RATE_LIMIT", "STRICT_RATE_LIMIT"] and risk_score < 40:
-                    policy_recommendation = "RELAX_POLICY"
-            # If traffic increased despite enforcement
-            elif rpm > prev_rpm * 1.3 and prev_action in ["RATE_LIMIT", "STRICT_RATE_LIMIT"]:
-                feedback_result = "ESCALATED"
-                policy_recommendation = "ESCALATE_TO_BLOCK"
+                if prev["action"] in ["RATE_LIMIT", "STRICT_RATE_LIMIT"] and risk_score < 40:
+                    policy_rec = "RELAX_POLICY"
+            elif rpm > prev["rpm"] * 1.3 and prev["action"] in ["RATE_LIMIT", "STRICT_RATE_LIMIT"]:
+                feedback_result, policy_rec = "ESCALATED", "ESCALATE_TO_BLOCK"
+            elif action in ["RATE_LIMIT", "STRICT_RATE_LIMIT", "BLOCK"]:
+                feedback_result, policy_rec = "THROTTLED", "DECREASE_QUOTA"
 
-        entry = {
-            "timestamp": now,
-            "action": action,
-            "risk_score": risk_score,
-            "rpm": rpm,
-            "feedback_result": feedback_result,
-            "policy_recommendation": policy_recommendation
-        }
-        
+        entry = {"timestamp": time.time(), "action": action, "risk_score": risk_score,
+                 "rpm": rpm, "feedback_result": feedback_result, "policy_recommendation": policy_rec}
         history.append(entry)
         if len(history) > 20:
             history.pop(0)
-
         return entry
-
-    def get_feedback_summary(self, client_id: str) -> Dict[str, Any]:
-        history = self.action_history.get(client_id, [])
-        if not history:
-            return {"status": "NO_HISTORY"}
-        return history[-1]

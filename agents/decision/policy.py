@@ -1,46 +1,48 @@
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple
 
-class SecurityPolicyEngine:
-    def __init__(self):
-        pass
+class SecurityDecisionAgent:
+    def make_decision(self, threat: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, Any]:
+        risk = threat.get("risk_score", 0.0)
+        is_genuine_burst = threat.get("is_genuine_burst", False)
+        reasons = list(threat.get("reasons", []))
+        login_failures = metrics.get("login_failures", 0)
+        rpm = metrics.get("requests_per_minute", 0)
+        hist_risk = metrics.get("historical_max_risk", 0.0)
+        features = threat.get("features", {})
 
-    def evaluate_policy(
-        self,
-        threat_assessment: Dict[str, Any],
-        client_metrics: Dict[str, Any],
-        gateway_load: float = 0.0
-    ) -> Tuple[str, str]:
-        """
-        Evaluates context and decides action:
-        ALLOW, RATE_LIMIT, STRICT_RATE_LIMIT, CHALLENGE, BLOCK
-        """
-        risk_score = threat_assessment.get("risk_score", 0.0)
-        risk_level = threat_assessment.get("risk_level", "NORMAL")
-        detected_reasons = threat_assessment.get("reasons", [])
-        login_failures = client_metrics.get("login_failures", 0)
-        rpm = client_metrics.get("requests_per_minute", 0)
-        hist_risk = client_metrics.get("historical_max_risk", 0.0)
+        is_bot_flood = (
+            features.get("burst_1s", 0) >= 5
+            or (features.get("burst_5s", 0) >= 3 and features.get("avg_interval_sec", 1.0) < 0.15)
+            or rpm >= 150
+        )
 
-        action = "ALLOW"
-        decision_reasons = list(detected_reasons)
-
-        if risk_score >= 85.0 or login_failures >= 6:
+        if risk >= 85.0 or login_failures >= 6 or is_bot_flood:
             action = "BLOCK"
-            decision_reasons.append("Critical risk score threshold exceeded or severe login failures")
-        elif risk_score >= 65.0 or login_failures >= 3:
-            # Check client history: if client has been previously trustworthy, rate limit instead of block
+            reasons.append("Critical attack — quota reduced to 0 RPM (BLOCK)")
+        elif risk >= 65.0 or login_failures >= 3:
             if hist_risk < 40.0 and login_failures < 3 and rpm < 90:
                 action = "STRICT_RATE_LIMIT"
-                decision_reasons.append("High risk detected, applying strict rate limiting (preserving clean history)")
+                reasons.append("High risk — quota reduced to 10 RPM (Strict Rate Limit)")
+            elif login_failures >= 4:
+                action = "BLOCK"
+                reasons.append("Repeated login failures — quota reduced to 0 RPM (BLOCK)")
             else:
-                action = "STRICT_RATE_LIMIT" if login_failures < 4 else "BLOCK"
-                decision_reasons.append("High risk combined with suspicious pattern or multiple login failures")
-        elif risk_score >= 35.0 or rpm > 45:
+                action = "STRICT_RATE_LIMIT"
+                reasons.append("High risk attack pattern — quota reduced to 10 RPM (Strict Rate Limit)")
+        elif risk >= 35.0:
             action = "RATE_LIMIT"
-            decision_reasons.append("Moderate risk or elevated request rate detected")
+            reasons.append("Suspicious activity — quota reduced to 30 RPM (Rate Limit)")
+        elif is_genuine_burst or (rpm >= 35 and login_failures == 0 and risk < 35.0):
+            action = "BOOST_RATE_LIMIT"
+            reasons.append("Genuine traffic surge — quota increased to 250 RPM (Boost)")
         else:
             action = "ALLOW"
-            decision_reasons.append("Request within normal baseline thresholds")
+            reasons.append("Normal baseline — 100 RPM standard quota")
 
-        explanation = "; ".join(decision_reasons)
-        return action, explanation
+        return {
+            "client_id": metrics.get("client_id"),
+            "risk_score": risk,
+            "risk_level": threat.get("risk_level"),
+            "decision": action,
+            "reason": "; ".join(reasons)
+        }

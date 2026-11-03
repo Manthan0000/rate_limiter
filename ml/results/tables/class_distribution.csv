@@ -1,0 +1,8 @@
+Attack Type,Flows,Share (%)
+BENIGN,2095220,83.114
+DoS,193745,7.686
+DDoS,128014,5.078
+PortScan,90694,3.598
+Brute Force,10620,0.421
+Bot,1948,0.077
+Web Attack,673,0.027

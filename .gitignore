@@ -95,6 +95,10 @@ sql_app.db
 # Machine Learning generated artifacts
 ml/models/*.pkl
 
+# Local training datasets
+TrafficLabelling/*.csv
+cicids2017_cleaned.csv
+
 # Node / React Dashboard
 node_modules/
 dashboard/node_modules/

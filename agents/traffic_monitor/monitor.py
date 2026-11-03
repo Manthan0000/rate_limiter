@@ -1,104 +1,67 @@
 import time
 from collections import defaultdict, deque
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 class TrafficMonitoringAgent:
     def __init__(self, window_seconds: int = 60):
         self.window_seconds = window_seconds
-        # client_id -> deque of timestamps
         self.request_timestamps: Dict[str, deque] = defaultdict(deque)
-        # client_id -> deque of (timestamp, endpoint, status_code, is_login_failure, payload_size)
         self.request_history: Dict[str, deque] = defaultdict(deque)
-        # client_id -> login failure timestamps
         self.login_failures: Dict[str, deque] = defaultdict(deque)
-        # client_id -> Dict[endpoint, count]
         self.endpoint_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        # client_id -> client IP
         self.client_ips: Dict[str, str] = {}
-        # Historical max risk recorded
         self.historical_risk: Dict[str, float] = defaultdict(float)
 
-    def record_request(self, client_id: str, ip: str, endpoint: str, method: str, payload_size: int = 0, is_login_attempt: bool = False, is_auth_failure: bool = False) -> Dict[str, Any]:
+    def record_request(self, client_id, ip, endpoint, method, payload_size=0, is_login_attempt=False, is_auth_failure=False):
         now = time.time()
         self.client_ips[client_id] = ip
-
-        # Add timestamp
         self.request_timestamps[client_id].append(now)
         self.request_history[client_id].append({
-            "timestamp": now,
-            "endpoint": endpoint,
-            "method": method,
-            "payload_size": payload_size,
-            "is_auth_failure": is_auth_failure
+            "timestamp": now, "endpoint": endpoint,
+            "method": method, "payload_size": payload_size, "is_auth_failure": is_auth_failure
         })
         self.endpoint_counts[client_id][endpoint] += 1
-
         if is_auth_failure:
             self.login_failures[client_id].append(now)
+        self._cleanup(client_id, now)
+        return self.get_metrics(client_id)
 
-        # Cleanup old entries outside window_seconds
-        self._cleanup_old_records(client_id, now)
-
-        # Compute current window metrics
-        return self.get_client_metrics(client_id)
-
-    def _cleanup_old_records(self, client_id: str, now: float):
+    def _cleanup(self, client_id, now):
         cutoff = now - self.window_seconds
-
-        # Clean request timestamps
-        while self.request_timestamps[client_id] and self.request_timestamps[client_id][0] < cutoff:
-            self.request_timestamps[client_id].popleft()
-
-        # Clean request history
+        for dq in [self.request_timestamps[client_id], self.login_failures[client_id]]:
+            while dq and dq[0] < cutoff:
+                dq.popleft()
         while self.request_history[client_id] and self.request_history[client_id][0]["timestamp"] < cutoff:
             self.request_history[client_id].popleft()
 
-        # Clean login failures
-        while self.login_failures[client_id] and self.login_failures[client_id][0] < cutoff:
-            self.login_failures[client_id].popleft()
-
-    def get_client_metrics(self, client_id: str) -> Dict[str, Any]:
+    def get_metrics(self, client_id) -> Dict[str, Any]:
         now = time.time()
-        self._cleanup_old_records(client_id, now)
-
-        total_in_window = len(self.request_timestamps[client_id])
-        
-        # Calculate short-term burst (last 5 seconds)
-        short_cutoff = now - 5.0
-        burst_5s = sum(1 for t in self.request_timestamps[client_id] if t >= short_cutoff)
-
-        # Calculate projected requests per minute (extrapolated from burst if high)
-        projected_rpm = max(total_in_window, int((burst_5s / 5.0) * 60))
-        requests_per_sec = round(burst_5s / 5.0, 2)
-
-        login_failure_count = len(self.login_failures[client_id])
-        unique_endpoints = len(set(req["endpoint"] for req in self.request_history[client_id]))
-
-        # Calculate average payload size
+        self._cleanup(client_id, now)
+        total = len(self.request_timestamps[client_id])
+        recent_5s = [t for t in self.request_timestamps[client_id] if t >= now - 5.0]
+        burst_5s = len(recent_5s)
+        burst_1s = sum(1 for t in recent_5s if t >= now - 1.0)
+        avg_interval = round(
+            sum(recent_5s[i] - recent_5s[i-1] for i in range(1, len(recent_5s))) / (len(recent_5s) - 1), 3
+        ) if len(recent_5s) >= 2 else 1.0
+        projected_rpm = max(total, int((burst_5s / 5.0) * 60))
         history = self.request_history[client_id]
-        avg_payload_size = (sum(r["payload_size"] for r in history) / len(history)) if history else 0.0
-
         return {
             "client_id": client_id,
             "ip": self.client_ips.get(client_id, "127.0.0.1"),
-            "request_count": total_in_window,
-            "requests_per_second": requests_per_sec,
+            "request_count": total,
+            "requests_per_second": round(burst_5s / 5.0, 2),
             "requests_per_minute": projected_rpm,
             "burst_5s": burst_5s,
-            "login_failures": login_failure_count,
-            "unique_endpoints": unique_endpoints,
-            "avg_payload_size": avg_payload_size,
+            "burst_1s": burst_1s,
+            "avg_interval_sec": avg_interval,
+            "login_failures": len(self.login_failures[client_id]),
+            "unique_endpoints": len(set(r["endpoint"] for r in history)),
+            "avg_payload_size": (sum(r["payload_size"] for r in history) / len(history)) if history else 0.0,
             "endpoint_distribution": dict(self.endpoint_counts[client_id]),
             "historical_max_risk": self.historical_risk.get(client_id, 0.0)
         }
 
-    def update_historical_risk(self, client_id: str, risk: float):
+    def update_historical_risk(self, client_id, risk):
         if risk > self.historical_risk[client_id]:
             self.historical_risk[client_id] = risk
-
-    def reset_client(self, client_id: str):
-        self.request_timestamps[client_id].clear()
-        self.request_history[client_id].clear()
-        self.login_failures[client_id].clear()
-        self.endpoint_counts[client_id].clear()
-        self.historical_risk[client_id] = 0.0
